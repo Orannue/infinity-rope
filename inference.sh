@@ -14,9 +14,9 @@ MODEL_FPS=16
 TEMPORAL_COMPRESSION=4
 NUM_FRAME_PER_BLOCK=""
 DO_UPLOAD=1
-HF_REPO_ID="Orannue/multishot_long_video"
+HF_REPO_ID="Orannue/Baseline_results"
 HF_REPO_TYPE="model"
-HF_PATH_IN_REPO=""
+HF_UPLOAD_PATH="infinity_rope/eval_caption_multishot_t2v_100"
 HF_TOKEN="${HF_TOKEN:-}"
 
 usage() {
@@ -40,7 +40,8 @@ Options:
   --upload / --no_upload                 Upload final output folder to HuggingFace. Default: upload
   --hf_repo_id ID                        HuggingFace repo id. Default: Orannue/multishot_long_video
   --hf_repo_type TYPE                    HuggingFace repo type. Default: model
-  --hf_path_in_repo PATH                 HuggingFace destination path. Default: same as output_root
+  --hf_upload_path PATH                  HuggingFace destination path. Default: infinity_rope/eval_caption_multishot_t2v_100
+  --hf_path_in_repo PATH                 Alias for --hf_upload_path
   --hf_token TOKEN                       HuggingFace token. Default: HF_TOKEN env or cached login
   -h, --help                             Show this help message
 
@@ -118,8 +119,8 @@ while [[ $# -gt 0 ]]; do
             HF_REPO_TYPE="$2"
             shift 2
             ;;
-        --hf_path_in_repo)
-            HF_PATH_IN_REPO="$2"
+        --hf_upload_path|--hf_path_in_repo)
+            HF_UPLOAD_PATH="$2"
             shift 2
             ;;
         --hf_token)
@@ -305,11 +306,7 @@ for line_idx, _ in enumerate(prompts):
 PY
 
 if [[ "$DO_UPLOAD" == "1" ]]; then
-    if [[ -z "$HF_PATH_IN_REPO" ]]; then
-        HF_PATH_IN_REPO="$OUTPUT_ROOT"
-    fi
-
-    python - "$OUTPUT_ROOT" "$HF_REPO_ID" "$HF_REPO_TYPE" "$HF_PATH_IN_REPO" "$HF_TOKEN" <<'PY'
+    python - "$OUTPUT_ROOT" "$HF_REPO_ID" "$HF_REPO_TYPE" "$HF_UPLOAD_PATH" "$HF_TOKEN" <<'PY'
 import os
 import sys
 from pathlib import Path
