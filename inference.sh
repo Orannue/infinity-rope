@@ -15,7 +15,7 @@ TEMPORAL_COMPRESSION=4
 NUM_FRAME_PER_BLOCK=""
 DO_UPLOAD=1
 HF_REPO_ID="Orannue/Baseline_results"
-HF_REPO_TYPE="model"
+HF_REPO_TYPE="dataset"
 HF_UPLOAD_PATH="eval_caption_multishot_t2v_100/infinity_rope"
 HF_TOKEN="${HF_TOKEN:-}"
 
