@@ -3,6 +3,7 @@ set -euo pipefail
 
 CONFIG_PATH="configs/self_forcing_dmd.yaml"
 MODEL_PATH="checkpoints/ema_model.pt"
+WAN_MODEL_PATH="wan_models/Wan2.1-T2V-1.3B"
 PROMPTS_PATH="eval_caption_multishot_t2v_100_infinity_rope_prompts.txt"
 OUTPUT_ROOT="videos/eval_caption_multishot_t2v_100"
 SEED=0
@@ -26,6 +27,7 @@ Usage:
 
 Options:
   --model_path, --checkpoint_path PATH   Model checkpoint path. Default: checkpoints/ema_model.pt
+  --wan_model_path PATH                  Wan2.1-T2V-1.3B base model folder. Default: wan_models/Wan2.1-T2V-1.3B
   --config_path PATH                     Config path. Default: configs/self_forcing_dmd.yaml
   --prompts_path PATH                    Prompt txt file. Default: eval_caption_multishot_t2v_100_infinity_rope_prompts.txt
   --output_root PATH                     Final output root. Default: videos/eval_caption_multishot_t2v_100
@@ -57,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --model_path|--checkpoint_path)
             MODEL_PATH="$2"
+            shift 2
+            ;;
+        --wan_model_path|--wan_path)
+            WAN_MODEL_PATH="$2"
             shift 2
             ;;
         --config_path)
@@ -157,6 +163,7 @@ mkdir -p "$RAW_OUTPUT"
 python inference.py \
     --config_path "$CONFIG_PATH" \
     --checkpoint_path "$MODEL_PATH" \
+    --wan_model_path "$WAN_MODEL_PATH" \
     --output_folder "$RAW_OUTPUT" \
     --data_path "$PROMPTS_PATH" \
     --seed "$SEED" \

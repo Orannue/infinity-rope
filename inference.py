@@ -122,6 +122,8 @@ def calculate_latent_frames_from_duration(total_duration_seconds, fps, temporal_
 parser = argparse.ArgumentParser()
 parser.add_argument("--config_path", type=str, help="Path to the config file")
 parser.add_argument("--checkpoint_path", type=str, help="Path to the checkpoint folder")
+parser.add_argument("--wan_model_path", type=str, default=None,
+                    help="Path to the Wan2.1-T2V-1.3B base model folder")
 parser.add_argument("--data_path", type=str, help="Path to the dataset")
 parser.add_argument("--extended_prompt_path", type=str, help="Path to the extended prompt")
 parser.add_argument("--output_folder", type=str, help="Output folder")
@@ -159,6 +161,8 @@ torch.set_grad_enabled(False)
 config = OmegaConf.load(args.config_path)
 default_config = OmegaConf.load("configs/default_config.yaml")
 config = OmegaConf.merge(default_config, config)
+if args.wan_model_path is not None:
+    config.wan_model_path = args.wan_model_path
 
 # Initialize pipeline
 if hasattr(config, 'denoising_step_list'):
