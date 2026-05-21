@@ -3,7 +3,7 @@ set -euo pipefail
 
 CONFIG_PATH="configs/self_forcing_dmd.yaml"
 MODEL_PATH="checkpoints/ema_model.pt"
-WAN_MODEL_PATH="wan_models/Wan2.1-T2V-1.3B"
+WAN_MODEL_PATH="..models/Wan2.1-T2V-1.3B"
 PROMPTS_PATH="eval_caption_multishot_t2v_100_infinity_rope_prompts.txt"
 OUTPUT_ROOT="videos/eval_caption_multishot_t2v_100"
 SEED=0
