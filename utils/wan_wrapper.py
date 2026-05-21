@@ -34,7 +34,7 @@ class WanTextEncoder(torch.nn.Module):
     @property
     def device(self):
         # Assume we are always on GPU
-        return torch.cuda.current_device()
+        return torch.device(f"cuda:{torch.cuda.current_device()}")
 
     def forward(self, text_prompts: List[str]) -> dict:
         ids, mask = self.tokenizer(
