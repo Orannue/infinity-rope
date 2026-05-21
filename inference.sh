@@ -8,6 +8,7 @@ PROMPTS_PATH="eval_caption_multishot_t2v_100_infinity_rope_prompts.txt"
 OUTPUT_ROOT="videos/eval_caption_multishot_t2v_100"
 SEED=0
 NUM_SAMPLES=1
+NUM_GPUS=8
 USE_EMA=1
 SHOTS_PER_VIDEO=6
 SHOT_SECONDS=5
@@ -33,6 +34,7 @@ Options:
   --output_root PATH                     Final output root. Default: videos/eval_caption_multishot_t2v_100
   --seed INT                             Seed. Default: 0
   --num_samples INT                      Samples per prompt. Default: 1
+  --num_gpus INT                         Number of GPUs/processes for torchrun. Default: 1
   --shots_per_video INT                  Number of shots to split from each full video. Default: 6
   --shot_seconds FLOAT                   Seconds per split shot. Default: 5
   --model_fps FLOAT                      FPS used by inference.py duration logic. Default: 16
@@ -83,6 +85,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --num_samples)
             NUM_SAMPLES="$2"
+            shift 2
+            ;;
+        --num_gpus|--nproc_per_node)
+            NUM_GPUS="$2"
             shift 2
             ;;
         --shots_per_video)
@@ -160,7 +166,12 @@ fi
 RAW_OUTPUT="${OUTPUT_ROOT}/_raw_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$RAW_OUTPUT"
 
-python inference.py \
+INFERENCE_CMD=(python inference.py)
+if [[ "$NUM_GPUS" != "1" ]]; then
+    INFERENCE_CMD=(torchrun --standalone --nproc_per_node "$NUM_GPUS" inference.py)
+fi
+
+"${INFERENCE_CMD[@]}" \
     --config_path "$CONFIG_PATH" \
     --checkpoint_path "$MODEL_PATH" \
     --wan_model_path "$WAN_MODEL_PATH" \
