@@ -94,6 +94,7 @@ class CausalInferencePipeline(torch.nn.Module):
         # ================================
         # Parse scene durations from prompts
         scene_prompts, scene_block_counts, scene_cut_flags = self._parse_scene_durations(text_prompts[0])
+        scene_block_counts = self._fit_scene_blocks_to_generation_length(scene_block_counts, num_blocks)
         conditional_dict_list = [self.text_encoder(text_prompts=[tp]) for tp in scene_prompts]
         
         # Calculate cumulative block indices for scene transitions
@@ -441,3 +442,42 @@ class CausalInferencePipeline(torch.nn.Module):
             scene_cut_flags.append(has_scene_cut)
         
         return prompt_texts, block_counts, scene_cut_flags
+
+    def _fit_scene_blocks_to_generation_length(self, block_counts: List[int], total_blocks: int) -> List[int]:
+        """
+        Fit parsed scene durations to the actual number of generated blocks.
+
+        Durations such as 5s may not land exactly on the model's block grid
+        when num_frame_per_block > 1. This keeps the relative scene durations
+        while ensuring all generated blocks are assigned to a scene instead of
+        silently extending the final scene.
+        """
+        if not block_counts or total_blocks <= 0:
+            return block_counts
+
+        if len(block_counts) == 1:
+            return [total_blocks]
+
+        requested_total = sum(block_counts)
+        if requested_total == total_blocks:
+            return block_counts
+
+        boundaries = []
+        cumulative = 0
+        for count in block_counts[:-1]:
+            cumulative += count
+            boundaries.append(round(cumulative * total_blocks / requested_total))
+
+        fitted_counts = []
+        previous = 0
+        num_scenes = len(block_counts)
+        for i, boundary in enumerate(boundaries):
+            remaining_scenes = num_scenes - i - 1
+            min_boundary = previous + 1
+            max_boundary = total_blocks - remaining_scenes
+            boundary = min(max(boundary, min_boundary), max_boundary)
+            fitted_counts.append(boundary - previous)
+            previous = boundary
+
+        fitted_counts.append(total_blocks - previous)
+        return fitted_counts
