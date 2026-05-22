@@ -1,14 +1,14 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 from __future__ import annotations
 
 import argparse
 import json
 import math
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from vbench_multishot import VBenchMultishot
 
 
 DEFAULT_METRICS = [
@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         help="Directory for raw and summary JSON outputs.",
     )
     parser.add_argument("--device", default="cuda", help="Torch device, usually cuda or cpu.")
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Optional model cache root. Sets VBENCH_CACHE_DIR before loading VBench models.",
+    )
     parser.add_argument(
         "--metrics",
         nargs="+",
@@ -156,6 +161,11 @@ def collect_metric_averages(results: dict[str, Any]) -> dict[str, dict[str, floa
 
 def main() -> None:
     args = parse_args()
+    if args.cache_dir:
+        os.environ["VBENCH_CACHE_DIR"] = str(Path(args.cache_dir).expanduser().resolve())
+
+    from vbench_multishot import VBenchMultishot
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
