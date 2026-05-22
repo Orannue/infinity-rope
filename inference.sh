@@ -308,11 +308,21 @@ def fit_scene_blocks_to_generation_length(block_counts, total_blocks):
     fitted_counts.append(total_blocks - previous)
     return fitted_counts
 
-def scene_boundaries_for_prompt(prompt):
+def decoded_frames_for_latents(num_latents):
+    if num_latents <= 0:
+        return 0
+    return 1 + (num_latents - 1) * temporal_compression
+
+def scene_boundaries_for_prompt(prompt, total_frames):
     durations = parse_durations(prompt)
     if durations is None:
         shot_frames = round(shot_seconds * model_fps)
-        return [i * shot_frames for i in range(shots_per_video + 1)], [shot_frames] * shots_per_video
+        boundaries = [i * shot_frames for i in range(shots_per_video + 1)]
+        boundaries[-1] = total_frames
+        return boundaries, [
+            boundaries[i + 1] - boundaries[i]
+            for i in range(len(boundaries) - 1)
+        ]
 
     block_counts = [
         max(1, int((duration * model_fps) / frames_per_generation_block))
@@ -325,8 +335,15 @@ def scene_boundaries_for_prompt(prompt):
     cumulative_blocks = 0
     for block_count in block_counts:
         cumulative_blocks += block_count
-        boundaries.append(cumulative_blocks * frames_per_generation_block)
-    return boundaries, [count * frames_per_generation_block for count in block_counts]
+        cumulative_latents = cumulative_blocks * num_frame_per_block
+        boundaries.append(decoded_frames_for_latents(cumulative_latents))
+
+    boundaries = [min(boundary, total_frames) for boundary in boundaries]
+    boundaries[-1] = total_frames
+    return boundaries, [
+        boundaries[i + 1] - boundaries[i]
+        for i in range(len(boundaries) - 1)
+    ]
 
 with prompts_path.open("r", encoding="utf-8") as f:
     prompts = [line.rstrip("\n") for line in f]
@@ -351,13 +368,14 @@ for line_idx, _ in enumerate(prompts):
     write_video(str(out_dir / "full.mp4"), video, fps=fps)
 
     total_frames = video.shape[0]
-    boundaries, shot_frame_counts = scene_boundaries_for_prompt(prompts[line_idx])
+    boundaries, shot_frame_counts = scene_boundaries_for_prompt(prompts[line_idx], total_frames)
     if boundaries[-1] > total_frames:
         raise RuntimeError(
             f"Generated video{json_idx} has {total_frames} frames, "
             f"but prompt-aligned scene boundaries require {boundaries[-1]} frames. "
             f"num_frame_per_block={num_frame_per_block}, "
-            f"frames_per_generation_block={frames_per_generation_block}."
+            f"frames_per_generation_block={frames_per_generation_block}, "
+            f"vae_decoded_frames=1+(latent_frames-1)*{temporal_compression}."
         )
     for shot_idx in range(shots_per_video):
         start = boundaries[shot_idx]
