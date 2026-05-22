@@ -13,17 +13,17 @@ MODEL_CACHE_DIR="${VBENCH_CACHE_DIR:-$SCRIPT_DIR/../FAR-Dev2/experiments/pretrai
 export VBENCH_CACHE_DIR="$(cd "$MODEL_CACHE_DIR" && pwd)"
 
 echo "VBENCH_CACHE_DIR=$VBENCH_CACHE_DIR"
-ls "$VBENCH_CACHE_DIR"
-
+ls "$VBENCH_CACHE_DIR"  
+        
 CUDA_VISIBLE_DEVICES=1 python evaluate_multishot.py \
   --result-root "$RESULT_ROOT" \
   --manifest "$MANIFEST" \
   --output-dir "$OUTPUT_DIR" \
-  --device "$DEVICE" \
-  --metrics overall_quality shot_structure intra_shot_quality inter_shot_quality \
+  --device "$DEVICE" \  
+  --metrics  shot_structure \
   --text-alignment-metric overall_consistency \
   --overall-quality-dimensions aesthetic_quality dynamic_degree \
-  --intra-shot-quality-dimensions subject_consistency background_consistency \
+  --intra-shot-quality-dimensions subject_consistency background_consistency \  
   --sca-detector transnetv2 \
   --sca-threshold 0.5 \
   --sca-min-gap-sec 0.35 \
