@@ -21,6 +21,8 @@ HF_REPO_ID="Orannue/Baseline_results"
 HF_REPO_TYPE="dataset"
 HF_UPLOAD_PATH="eval_caption_multishot_t2v_100/infinity_rope"
 HF_TOKEN="${HF_TOKEN:-}"
+RAW_OUTPUT=""
+SKIP_INFERENCE=0
 
 usage() {
     cat <<'EOF'
@@ -33,6 +35,8 @@ Options:
   --config_path PATH                     Config path. Default: configs/self_forcing_dmd.yaml
   --prompts_path PATH                    Prompt txt file. Default: eval_caption_multishot_t2v_100_infinity_rope_prompts.txt
   --output_root PATH                     Final output root. Default: videos/eval_caption_multishot_t2v_100
+  --raw_output PATH                      Existing raw mp4 folder, or custom raw output folder
+  --skip_inference, --split_only         Skip generation and split/upload latest _raw_* unless --raw_output is set
   --seed INT                             Seed. Default: 0
   --num_samples INT                      Samples per prompt. Default: 1
   --cuda_visible_devices LIST            CUDA_VISIBLE_DEVICES value. Default: 4,5,6,7
@@ -80,6 +84,14 @@ while [[ $# -gt 0 ]]; do
         --output_root|--output_folder)
             OUTPUT_ROOT="$2"
             shift 2
+            ;;
+        --raw_output)
+            RAW_OUTPUT="$2"
+            shift 2
+            ;;
+        --skip_inference|--split_only)
+            SKIP_INFERENCE=1
+            shift
             ;;
         --seed)
             SEED="$2"
@@ -169,26 +181,55 @@ if [[ "$USE_EMA" == "1" ]]; then
     MODEL_TAG="ema"
 fi
 
-RAW_OUTPUT="${OUTPUT_ROOT}/_raw_$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$RAW_OUTPUT"
+if [[ "$SKIP_INFERENCE" == "1" ]]; then
+    if [[ -z "$RAW_OUTPUT" ]]; then
+        RAW_OUTPUT=$(python - "$OUTPUT_ROOT" <<'PY'
+import sys
+from pathlib import Path
+
+output_root = Path(sys.argv[1])
+raw_dirs = sorted(
+    [path for path in output_root.glob("_raw_*") if path.is_dir()],
+    key=lambda path: path.stat().st_mtime,
+)
+if not raw_dirs:
+    raise SystemExit(f"No _raw_* folders found under {output_root}")
+print(raw_dirs[-1])
+PY
+)
+        echo "Using latest raw output folder: $RAW_OUTPUT"
+    fi
+
+    if [[ ! -d "$RAW_OUTPUT" ]]; then
+        echo "Raw output folder does not exist: $RAW_OUTPUT" >&2
+        exit 1
+    fi
+else
+    if [[ -z "$RAW_OUTPUT" ]]; then
+        RAW_OUTPUT="${OUTPUT_ROOT}/_raw_$(date +%Y%m%d_%H%M%S)"
+    fi
+    mkdir -p "$RAW_OUTPUT"
+fi
 
 export CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES_VALUE"
 
-INFERENCE_CMD=(python inference.py)
-if [[ "$NUM_GPUS" != "1" ]]; then
-    INFERENCE_CMD=(torchrun --standalone --nproc_per_node "$NUM_GPUS" inference.py)
-fi
+if [[ "$SKIP_INFERENCE" != "1" ]]; then
+    INFERENCE_CMD=(python inference.py)
+    if [[ "$NUM_GPUS" != "1" ]]; then
+        INFERENCE_CMD=(torchrun --standalone --nproc_per_node "$NUM_GPUS" inference.py)
+    fi
 
-"${INFERENCE_CMD[@]}" \
-    --config_path "$CONFIG_PATH" \
-    --checkpoint_path "$MODEL_PATH" \
-    --wan_model_path "$WAN_MODEL_PATH" \
-    --output_folder "$RAW_OUTPUT" \
-    --data_path "$PROMPTS_PATH" \
-    --seed "$SEED" \
-    --num_samples "$NUM_SAMPLES" \
-    --save_with_index \
-    "${EMA_ARGS[@]}"
+    "${INFERENCE_CMD[@]}" \
+        --config_path "$CONFIG_PATH" \
+        --checkpoint_path "$MODEL_PATH" \
+        --wan_model_path "$WAN_MODEL_PATH" \
+        --output_folder "$RAW_OUTPUT" \
+        --data_path "$PROMPTS_PATH" \
+        --seed "$SEED" \
+        --num_samples "$NUM_SAMPLES" \
+        --save_with_index \
+        "${EMA_ARGS[@]}"
+fi
 
 python - "$RAW_OUTPUT" "$OUTPUT_ROOT" "$PROMPTS_PATH" "$CONFIG_PATH" "$SEED" "$MODEL_TAG" "$SHOTS_PER_VIDEO" "$SHOT_SECONDS" "$MODEL_FPS" "$TEMPORAL_COMPRESSION" "$NUM_FRAME_PER_BLOCK" <<'PY'
 import math
