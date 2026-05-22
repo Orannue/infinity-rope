@@ -306,7 +306,7 @@ for line_idx, _ in enumerate(prompts):
     if video.numel() == 0:
         raise RuntimeError(f"Generated video is empty: {src}")
 
-    fps = info.get("video_fps", 16)
+    fps = int(round(float(info.get("video_fps", 16))))
     write_video(str(out_dir / "full.mp4"), video, fps=fps)
 
     total_frames = video.shape[0]
